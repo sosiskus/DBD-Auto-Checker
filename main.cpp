@@ -8,8 +8,16 @@
 #include <stdio.h>
 #include <vector>
 
+#define WINVER 0x0500
+
 using namespace std;
 using namespace cv;
+
+struct PointWithColor
+{
+    cv::Point point;
+    cv::Vec3b color;
+};
 
 Mat hwnd2mat(HWND hwnd)
 {
@@ -98,12 +106,6 @@ Mat ShowBlackCircle(const cv::Mat &img, cv::Point cp, int radius, int thik)
     return img;
 }
 
-struct PointWithColor
-{
-    cv::Point point;
-    cv::Scalar color;
-};
-
 std::vector<PointWithColor> safeWhitePixels(Mat img)
 {
     std::vector<PointWithColor> whitePixels;
@@ -112,15 +114,25 @@ std::vector<PointWithColor> safeWhitePixels(Mat img)
     {
         for (int x = 0; x < img.cols; x++)
         {
-            Vec3b color = img.at<Vec3b>(Point(x,y));
+            Vec3b color = img.at<Vec3b>(Point(x, y));
             if (color[0] > 250 && color[1] > 250 && color[2] > 250)
             {
-                whitePixels.push_back({Point(x,y), color});
-                std::cout << "WHITE" << std::endl;
+                whitePixels.push_back({Point(x, y), color});
+                // std::cout << "WHITE" << std::endl;
             }
         }
     }
     return whitePixels;
+}
+
+bool compareWhitePixels(std::vector<PointWithColor> first, std::vector<PointWithColor> second)
+{
+    if (first.size() != second.size())
+    {
+        std::cout << "Different size" << std::endl;
+        return false;
+    }
+    return true;
 }
 
 int main(int argc, char **argv)
@@ -130,6 +142,9 @@ int main(int argc, char **argv)
     int key = 0;
 
     // time_t start, end;
+    std::vector<PointWithColor> lastWhite;
+    bool first = true, checkBoxAppear = true, firstInWhiteLine = true;
+    double lastPressTime = 0;
     while (key != 27)
     {
         // start=clock();
@@ -149,9 +164,67 @@ int main(int argc, char **argv)
 
         croped = ShowBlackCircle(croped, Point(croped.size().width / 2, croped.size().height / 2), (double(src.size().width) / radiusIndex) + spacing + (100 / 2), 100);
 
-        safeWhitePixels(croped);
+        auto currentPixels = safeWhitePixels(croped);
+        if (!currentPixels.empty())
+        {
+            if (first)
+            {
+                lastWhite = currentPixels;
+                first = false;
+            }
+            else
+            {
+                if (!compareWhitePixels(lastWhite, currentPixels))
+                {
+                    if (checkBoxAppear)
+                    {
+                        std::cout << "Checkbox appear" << std::endl;
+                        checkBoxAppear = false;
+                    }
+                    else
+                    {
+                        if (firstInWhiteLine)
+                        {
+                            std::cout << "PRESS" << std::endl;
+                            lastPressTime = clock();
+                            firstInWhiteLine = false;
+
+                            INPUT ip;
+
+                            // Pause for 5 seconds.
+
+                            // Set up a generic keyboard event.
+                            ip.type = INPUT_KEYBOARD;
+                            ip.ki.wScan = 0; // hardware scan code for key
+                            ip.ki.time = 0;
+                            ip.ki.dwExtraInfo = 0;
+
+                            // Press the "A" key
+                            ip.ki.wVk = 0x20;  // virtual-key code for the "a" key
+                            ip.ki.dwFlags = 0; // 0 for key press
+                            SendInput(1, &ip, sizeof(INPUT));
+
+                            // Release the "A" key
+                            ip.ki.dwFlags = KEYEVENTF_KEYUP; // KEYEVENTF_KEYUP for key release
+                            SendInput(1, &ip, sizeof(INPUT));
+                        }
+                    }
+
+                    // after 1 s of no change in the pixels checkBox = true and firstInWhiteLine = true
+                }
+
+                lastWhite = currentPixels;
+            }
+        }
+        if (clock() - lastPressTime > 1000 && lastPressTime != 0)
+        {
+            firstInWhiteLine = true;
+            checkBoxAppear = true;
+            lastPressTime = 0;
+            std::cout << "RELEASE" << std::endl;
+        }
         // you can do some image processing here
         imshow("output", croped);
-        key = waitKey(60); // you can change wait time
+        key = waitKey(10); // you can change wait time
     }
 }
