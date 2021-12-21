@@ -1,0 +1,9 @@
+C:/Users/dolph/OneDrive/Desktop/DBD Auto Checker/build/CMakeFiles/Experimental.dir
+C:/Users/dolph/OneDrive/Desktop/DBD Auto Checker/build/CMakeFiles/Nightly.dir
+C:/Users/dolph/OneDrive/Desktop/DBD Auto Checker/build/CMakeFiles/Continuous.dir
+C:/Users/dolph/OneDrive/Desktop/DBD Auto Checker/build/CMakeFiles/NightlyMemoryCheck.dir
+C:/Users/dolph/OneDrive/Desktop/DBD Auto Checker/build/CMakeFiles/DBD_Auto_Check.dir
+C:/Users/dolph/OneDrive/Desktop/DBD Auto Checker/build/CMakeFiles/PACKAGE.dir
+C:/Users/dolph/OneDrive/Desktop/DBD Auto Checker/build/CMakeFiles/RUN_TESTS.dir
+C:/Users/dolph/OneDrive/Desktop/DBD Auto Checker/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/dolph/OneDrive/Desktop/DBD Auto Checker/build/CMakeFiles/ZERO_CHECK.dir

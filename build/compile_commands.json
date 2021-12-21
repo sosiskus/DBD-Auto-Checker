@@ -1,0 +1,7 @@
+[
+{
+  "directory": "C:/Users/dolph/OneDrive/Desktop/DBD Auto Checker/build",
+  "command": "C:\\MinGW\\bin\\mingw32-g++.exe  @CMakeFiles/DBD_Auto_Check.dir/includes_CXX.rsp -g -o CMakeFiles\\DBD_Auto_Check.dir\\main.cpp.obj -c \"C:\\Users\\dolph\\OneDrive\\Desktop\\DBD Auto Checker\\main.cpp\"",
+  "file": "C:/Users/dolph/OneDrive/Desktop/DBD Auto Checker/main.cpp"
+}
+]
