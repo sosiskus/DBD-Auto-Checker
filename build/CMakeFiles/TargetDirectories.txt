@@ -1,3 +1,0 @@
-C:/Users/dolph/OneDrive/Desktop/DBD_Auto_Checker/build/CMakeFiles/DBD_Auto_Check.dir
-C:/Users/dolph/OneDrive/Desktop/DBD_Auto_Checker/build/CMakeFiles/edit_cache.dir
-C:/Users/dolph/OneDrive/Desktop/DBD_Auto_Checker/build/CMakeFiles/rebuild_cache.dir
