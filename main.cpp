@@ -167,19 +167,41 @@ int calculateRadius(int screenWidth, int screenHeight, SizeScreenToCaptureArea w
 {
     double x = double(screenWidth) * double(widthrad.radius) / double(widthrad.screnSize);
     double y = double(screenHeight) * double(heightrad.radius) / double(heightrad.screnSize);
-    return int((x+y)/2.0);
+    return int((x + y) / 2.0);
 }
 
 int calculateSquare(int screenWidth, int screenHeight, SizeScreenToCaptureArea widthrad, SizeScreenToCaptureArea heightrad)
 {
     double x = double(screenWidth) * double(widthrad.radius) / double(widthrad.screnSize);
     double y = double(screenHeight) * double(heightrad.radius) / double(heightrad.screnSize);
-    auto res = int((x+y)/2.0);
+    auto res = int((x + y) / 2.0);
 
-    if(y > x)
-        return int((res+y)/2.0);
+    if (y > x)
+        return int((res + y) / 2.0);
     else
-        return int((res+x)/2.0);
+        return int((res + x) / 2.0);
+}
+
+void press()
+{
+    INPUT ip;
+
+    // Pause for 5 seconds.
+
+    // Set up a generic keyboard event.
+    ip.type = INPUT_KEYBOARD;
+    ip.ki.wScan = 0; // hardware scan code for key
+    ip.ki.time = 0;
+    ip.ki.dwExtraInfo = 0;
+
+    // Press the "SPACE" key
+    ip.ki.wVk = 0x20;  // virtual-key code for the "SPACE" key
+    ip.ki.dwFlags = 0; // 0 for key press
+    SendInput(1, &ip, sizeof(INPUT));
+
+    // Release the "SPACE" key
+    ip.ki.dwFlags = KEYEVENTF_KEYUP; // KEYEVENTF_KEYUP for key release
+    SendInput(1, &ip, sizeof(INPUT));
 }
 
 int main(int argc, char **argv)
@@ -210,7 +232,7 @@ int main(int argc, char **argv)
 
         auto croped = src(crop_region);
         // croped = constrast(alpha, beta, croped);
-        
+
         int realRadius = calculateRadius(src.size().width, src.size().height, widthRad, heightRad);
 
         croped = ShowBlackCircle(croped, Point(croped.size().width / 2, croped.size().height / 2), realRadius, FILLED);
@@ -241,27 +263,10 @@ int main(int argc, char **argv)
                         if (firstInWhiteLine)
                         {
                             std::cout << "PRESS" << std::endl;
-                            // lastPressTime = clock();
-                            // firstInWhiteLine = false;
+                            lastPressTime = clock();
+                            firstInWhiteLine = false;
 
-                            // INPUT ip;
-
-                            // // Pause for 5 seconds.
-
-                            // // Set up a generic keyboard event.
-                            // ip.type = INPUT_KEYBOARD;
-                            // ip.ki.wScan = 0; // hardware scan code for key
-                            // ip.ki.time = 0;
-                            // ip.ki.dwExtraInfo = 0;
-
-                            // // Press the "SPACE" key
-                            // ip.ki.wVk = 0x20;  // virtual-key code for the "SPACE" key
-                            // ip.ki.dwFlags = 0; // 0 for key press
-                            // SendInput(1, &ip, sizeof(INPUT));
-
-                            // // Release the "SPACE" key
-                            // ip.ki.dwFlags = KEYEVENTF_KEYUP; // KEYEVENTF_KEYUP for key release
-                            // SendInput(1, &ip, sizeof(INPUT));
+                            press();
                         }
                     }
 
