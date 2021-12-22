@@ -160,7 +160,7 @@ int main(int argc, char **argv)
 
     std::vector<PointWithColor> lastWhite;
     bool first = true, checkBoxAppear = true, firstInWhiteLine = true;
-    double lastPressTime = 0;
+    double lastPressTime = 0, lastTimeCheckBoxAppear = 0;
 
 #if !defined(RELEASE_MODE)
     namedWindow("output", WINDOW_AUTOSIZE);
@@ -203,6 +203,7 @@ int main(int argc, char **argv)
                     {
                         std::cout << "Checkbox appear" << std::endl;
                         checkBoxAppear = false;
+                        lastTimeCheckBoxAppear = clock();
                     }
                     else
                     {
@@ -222,12 +223,12 @@ int main(int argc, char **argv)
                             ip.ki.time = 0;
                             ip.ki.dwExtraInfo = 0;
 
-                            // Press the "A" key
-                            ip.ki.wVk = 0x20;  // virtual-key code for the "a" key
+                            // Press the "SPACE" key
+                            ip.ki.wVk = 0x20;  // virtual-key code for the "SPACE" key
                             ip.ki.dwFlags = 0; // 0 for key press
                             SendInput(1, &ip, sizeof(INPUT));
 
-                            // Release the "A" key
+                            // Release the "SPACE" key
                             ip.ki.dwFlags = KEYEVENTF_KEYUP; // KEYEVENTF_KEYUP for key release
                             SendInput(1, &ip, sizeof(INPUT));
                         }
@@ -246,7 +247,14 @@ int main(int argc, char **argv)
             lastPressTime = 0;
             std::cout << "RELEASE" << std::endl;
         }
-        // you can do some image processing here
+        if (clock() - lastTimeCheckBoxAppear > 1000 && lastTimeCheckBoxAppear != 0)
+        {
+            checkBoxAppear = true;
+            firstInWhiteLine = true;
+            lastTimeCheckBoxAppear = 0;
+            lastPressTime = 0;
+            std::cout << "NOT IN GAME ACTION" << std::endl;
+        }
 
 #if !defined(RELEASE_MODE)
         imshow("output", croped);
