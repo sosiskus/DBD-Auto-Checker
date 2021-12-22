@@ -1,3 +1,3 @@
 "C:\Program Files\CMake\bin\cmake.exe" -E rm -f CMakeFiles\DBD_Auto_Check.dir/objects.a
 C:\PROGRA~1\MINGW-~1\X86_64~1.0-P\mingw64\bin\ar.exe qc CMakeFiles\DBD_Auto_Check.dir/objects.a @CMakeFiles\DBD_Auto_Check.dir\objects1.rsp
-C:\PROGRA~1\MINGW-~1\X86_64~1.0-P\mingw64\bin\G__~1.EXE -Wl,--whole-archive CMakeFiles\DBD_Auto_Check.dir/objects.a -Wl,--no-whole-archive -o DBD_Auto_Check.exe -Wl,--out-implib,libDBD_Auto_Check.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\DBD_Auto_Check.dir\linklibs.rsp
+C:\PROGRA~1\MINGW-~1\X86_64~1.0-P\mingw64\bin\X86_64~2.EXE -g -Wl,--whole-archive CMakeFiles\DBD_Auto_Check.dir/objects.a -Wl,--no-whole-archive -o DBD_Auto_Check.exe -Wl,--out-implib,libDBD_Auto_Check.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\DBD_Auto_Check.dir\linklibs.rsp
