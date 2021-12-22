@@ -7,8 +7,11 @@
 #include <time.h>
 #include <stdio.h>
 #include <vector>
+#include <stdlib.h> /* atexit */
 
 #define WINVER 0x0500
+
+// #define RELEASE_MODE
 
 using namespace std;
 using namespace cv;
@@ -135,17 +138,37 @@ bool compareWhitePixels(std::vector<PointWithColor> first, std::vector<PointWith
     return true;
 }
 
+BOOL onConsoleEvent(DWORD event)
+{
+
+    switch (event)
+    {
+    case CTRL_C_EVENT:
+    case CTRL_CLOSE_EVENT:
+        // do stuff
+        std::cout << "CTRL_CLOSE_EVENT" << std::endl;
+        break;
+    }
+
+    return TRUE;
+}
+
 int main(int argc, char **argv)
 {
-    HWND hwndDesktop = GetDesktopWindow();
-    namedWindow("output", WINDOW_AUTOSIZE);
-    int key = 0;
 
-    // time_t start, end;
+    HWND hwndDesktop = GetDesktopWindow();
+
     std::vector<PointWithColor> lastWhite;
     bool first = true, checkBoxAppear = true, firstInWhiteLine = true;
     double lastPressTime = 0;
+
+#if !defined(RELEASE_MODE)
+    namedWindow("output", WINDOW_AUTOSIZE);
+    int key = 0;
     while (key != 27)
+#else
+    while (true)
+#endif
     {
         // start=clock();
         Mat src = hwnd2mat(hwndDesktop);
@@ -224,7 +247,19 @@ int main(int argc, char **argv)
             std::cout << "RELEASE" << std::endl;
         }
         // you can do some image processing here
+
+#if !defined(RELEASE_MODE)
         imshow("output", croped);
-        key = waitKey(10); // you can change wait time
+        key = waitKey(1); // you can change wait time
+        if (getWindowProperty("output", WND_PROP_VISIBLE) < 1)
+        {
+            std::cout << "Window is not visible" << std::endl;
+            break;
+        }
+#endif //
     }
+#if !defined(RELEASE_MODE)
+    destroyAllWindows();
+#endif
+    return 0;
 }
