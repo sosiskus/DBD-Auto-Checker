@@ -1,5 +1,6 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
+#include <opencv2/imgproc/types_c.h>
 #include <Windows.h>
 #include <iostream>
 #include <ctime>
@@ -8,6 +9,7 @@
 #include <stdio.h>
 #include <vector>
 #include <stdlib.h> /* atexit */
+#include <stack>
 
 #define WINVER 0x0500
 
@@ -178,95 +180,150 @@ void press()
     SendInput(1, &ip, sizeof(INPUT));
 }
 
+void Traverse(int xs, int ys, cv::Mat &ids, cv::Mat &image, int blobID, cv::Point &leftTop, cv::Point &rightBottom)
+{
+    std::stack<cv::Point> S;
+    S.push(cv::Point(xs, ys));
+
+    while (!S.empty())
+    {
+        cv::Point u = S.top();
+        S.pop();
+
+        int x = u.x;
+        int y = u.y;
+
+        if (image.at<unsigned char>(y, x) == 0 || ids.at<unsigned char>(y, x) > 0)
+            continue;
+
+        ids.at<unsigned char>(y, x) = blobID;
+        if (x < leftTop.x)
+            leftTop.x = x;
+        if (x > rightBottom.x)
+            rightBottom.x = x;
+        if (y < leftTop.y)
+            leftTop.y = y;
+        if (y > rightBottom.y)
+            rightBottom.y = y;
+
+        if (x > 0)
+            S.push(cv::Point(x - 1, y));
+        if (x < ids.cols - 1)
+            S.push(cv::Point(x + 1, y));
+        if (y > 0)
+            S.push(cv::Point(x, y - 1));
+        if (y < ids.rows - 1)
+            S.push(cv::Point(x, y + 1));
+    }
+}
+
+int FindBlobs(cv::Mat &image, std::vector<cv::Rect> &out, float minArea)
+{
+    cv::Mat ids = cv::Mat::zeros(image.rows, image.cols, CV_8UC1);
+    cv::Mat thresholded;
+    cv::cvtColor(image, thresholded, CV_RGB2GRAY);
+    const int thresholdLevel = 130;
+    cv::threshold(thresholded, thresholded, thresholdLevel, 255, CV_THRESH_BINARY);
+    int blobId = 1;
+    for (int x = 0; x < ids.cols; x++)
+        for (int y = 0; y < ids.rows; y++)
+        {
+            if (thresholded.at<unsigned char>(y, x) > 0 && ids.at<unsigned char>(y, x) == 0)
+            {
+                cv::Point leftTop(ids.cols - 1, ids.rows - 1), rightBottom(0, 0);
+                Traverse(x, y, ids, thresholded, blobId++, leftTop, rightBottom);
+                cv::Rect r(leftTop, rightBottom);
+                if (r.area() > minArea)
+                    out.push_back(r);
+            }
+        }
+    return blobId;
+}
+
 int main(int argc, char **argv)
 {
 
-    HWND hwndDesktop = GetDesktopWindow();
+    // HWND hwndDesktop = GetDesktopWindow();
 
-    std::vector<PointWithColor> lastWhite;
-    bool first = true, pressed = false;
-    double lastPressTime = 0, lastTimeCheckBoxAppear = 0;
-    int whitePixelsChangeCount = 0;
+    // std::vector<PointWithColor> lastWhite;
+    // bool first = true, pressed = false;
+    // double lastPressTime = 0, lastTimeCheckBoxAppear = 0;
+    // int whitePixelsChangeCount = 0;
 
-    Mat srcConfig = hwnd2mat(hwndDesktop);
-    const int squareSideLength = calculateSquare(srcConfig.size().width, srcConfig.size().height, widthSquare, heightSquare);
-    const int realRadius = calculateRadius(srcConfig.size().width, srcConfig.size().height, widthRad, heightRad);
+    // Mat srcConfig = hwnd2mat(hwndDesktop);
+    // const int squareSideLength = calculateSquare(srcConfig.size().width, srcConfig.size().height, widthSquare, heightSquare);
+    // const int realRadius = calculateRadius(srcConfig.size().width, srcConfig.size().height, widthRad, heightRad);
 
-    const Rect crop_region((srcConfig.size().width / 2) - (squareSideLength / 2), srcConfig.size().height / 2 - (squareSideLength / 2), squareSideLength, squareSideLength);
-    auto cropedConfig = srcConfig(crop_region);
-    const Point CircleCenter = Point(cropedConfig.size().width / 2, cropedConfig.size().height / 2);
+    // const Rect crop_region((srcConfig.size().width / 2) - (squareSideLength / 2), srcConfig.size().height / 2 - (squareSideLength / 2), squareSideLength, squareSideLength);
+    // auto cropedConfig = srcConfig(crop_region);
+    // const Point CircleCenter = Point(cropedConfig.size().width / 2, cropedConfig.size().height / 2);
 
-#if !defined(RELEASE_MODE)
-    namedWindow("output", WINDOW_AUTOSIZE);
-    int key = 0;
-    while (key != 27)
-#else
-    while (true)
-#endif
+    // namedWindow("output", WINDOW_NORMAL);
+
+    // auto t1 = clock();
+    // start=clock();
+    // Mat src = hwnd2mat(hwndDesktop);
+    std::string image_path = samples::findFile("C:/Users/dolph/OneDrive/Desktop/DBD_Auto_Checker/Untitled.png");
+    Mat img = imread(image_path, IMREAD_COLOR);
+
+
+    // Mat croped = src(Range(src.size().width / 2 - squareSide/2, src.size().width / 2 + squareSide/2),Range(src.size().height/2,src.size().height/2 + squareSide)); // Slicing to crop the image
+    std::vector<cv::Rect> h;
+    FindBlobs(img,h, 3);
+
+    for(int i = 0; i < h.size(); i++)
     {
-        // auto t1 = clock();
-        // start=clock();
-        Mat src = hwnd2mat(hwndDesktop);
-        // Mat croped = src(Range(src.size().width / 2 - squareSide/2, src.size().width / 2 + squareSide/2),Range(src.size().height/2,src.size().height/2 + squareSide)); // Slicing to crop the image
-
-        // specifies the region of interest in Rectangle form
-
-        auto croped = src(crop_region);
-        // croped = constrast(alpha, beta, croped);
-
-        croped = ShowBlackCircle(croped, CircleCenter, realRadius, FILLED);
-        ;
-        croped = ShowBlackCircle(croped, CircleCenter, realRadius + spacing + 50, 100);
-
-        auto currentPixels = safeWhitePixels(croped);
-        if (!currentPixels.empty())
-        {
-            if (first)
-            {
-                lastWhite = currentPixels;
-                first = false;
-            }
-            else
-            {
-                if (!compareWhitePixels(lastWhite, currentPixels))
-                {
-                    if (whitePixelsChangeCount > 0)
-                    {
-                        std::cout << "Press" << std::endl;
-                        press();
-                        lastPressTime = clock();
-
-                        whitePixelsChangeCount = 0;
-                        pressed = true;
-                    }
-                    else
-                    {
-                        whitePixelsChangeCount++;
-                    }
-                }
-
-                lastWhite = currentPixels;
-            }
-        }
-
-        if (clock() - lastPressTime > 1500 && pressed)
-        {
-            whitePixelsChangeCount = 0;
-            pressed = false;
-        }
-
-#if !defined(RELEASE_MODE)
-        imshow("output", croped);
-        key = waitKey(1); // you can change wait time
-        if (getWindowProperty("output", WND_PROP_VISIBLE) < 1)
-        {
-            std::cout << "Window is not visible" << std::endl;
-            break;
-        }
-#endif
+        rectangle(img, h[i], Scalar(0,0,255), 2, 8, 0);
     }
-#if !defined(RELEASE_MODE)
-    destroyAllWindows();
-#endif
+    // specifies the region of interest in Rectangle form
+
+    // auto croped = src(crop_region);
+    // // croped = constrast(alpha, beta, croped);
+
+    // croped = ShowBlackCircle(croped, CircleCenter, realRadius, FILLED);
+    // ;
+    // croped = ShowBlackCircle(croped, CircleCenter, realRadius + spacing + 50, 100);
+
+    // auto currentPixels = safeWhitePixels(croped);
+    // if (!currentPixels.empty())
+    // {
+    //     if (first)
+    //     {
+    //         lastWhite = currentPixels;
+    //         first = false;
+    //     }
+    //     else
+    //     {
+    //         if (!compareWhitePixels(lastWhite, currentPixels))
+    //         {
+    //             if (whitePixelsChangeCount > 0)
+    //             {
+    //                 std::cout << "Press" << std::endl;
+    //                 press();
+    //                 lastPressTime = clock();
+
+    //                 whitePixelsChangeCount = 0;
+    //                 pressed = true;
+    //             }
+    //             else
+    //             {
+    //                 whitePixelsChangeCount++;
+    //             }
+    //         }
+
+    //         lastWhite = currentPixels;
+    //     }
+    // }
+
+    // if (clock() - lastPressTime > 1500 && pressed)
+    // {
+    //     whitePixelsChangeCount = 0;
+    //     pressed = false;
+    // }
+
+    
+    imshow("Display window", img);
+    int k = waitKey(0); // Wait for a keystroke in the window
+
     return 0;
 }
