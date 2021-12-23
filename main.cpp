@@ -89,46 +89,21 @@ const SizeScreenToCaptureArea widthSquare = {1280, 100};
 // const double radiusIndex = 30;
 const double spacing = 10;
 
-const double alpha = 5; /**< Simple contrast control */
-const int beta = 0;     /**< Simple brightness control */
-
-Mat constrast(double alpha, int beta, Mat image)
-{
-    Mat new_image = Mat::zeros(image.size(), image.type());
-    for (int y = 0; y < image.rows; y++)
-    {
-        for (int x = 0; x < image.cols; x++)
-        {
-            for (int c = 0; c < 3; c++)
-            {
-                new_image.at<Vec3b>(y, x)[c] =
-                    saturate_cast<uchar>(alpha * (image.at<Vec3b>(y, x)[c]) + beta);
-            }
-        }
-    }
-    return new_image;
-}
-
 Mat ShowBlackCircle(const cv::Mat &img, cv::Point cp, int radius, int thik)
 {
-    // int t_out = 0;
-    // std::string win_name = "circle";
-    cv::Scalar black(0, 0, 0);
-    cv::circle(img, cp, radius, black, thik);
-    // cv::imshow( win_name, img ); cv::waitKey( t_out );
+    cv::circle(img, cp, radius, Scalar(0, 0, 0), thik);
     return img;
 }
 
 std::vector<PointWithColor> safeWhitePixels(Mat img)
 {
     std::vector<PointWithColor> whitePixels;
-    Mat only_white = Mat::zeros(img.size(), img.type());
     for (int y = 0; y < img.rows; y++)
     {
         for (int x = 0; x < img.cols; x++)
         {
             Vec3b color = img.at<Vec3b>(Point(x, y));
-            if (color[0] > 250 && color[1] > 250 && color[2] > 250)
+            if (color[0] == 255 && color[1] == 255 && color[2] == 255)
             {
                 whitePixels.push_back({Point(x, y), color});
                 // std::cout << "WHITE" << std::endl;
@@ -138,11 +113,10 @@ std::vector<PointWithColor> safeWhitePixels(Mat img)
     return whitePixels;
 }
 
-bool compareWhitePixels(std::vector<PointWithColor> first, std::vector<PointWithColor> second)
+bool compareWhitePixels(std::vector<PointWithColor> &first, std::vector<PointWithColor> &second)
 {
     if (first.size() != second.size())
     {
-        std::cout << "Different size" << std::endl;
         return false;
     }
     return true;
@@ -210,8 +184,17 @@ int main(int argc, char **argv)
     HWND hwndDesktop = GetDesktopWindow();
 
     std::vector<PointWithColor> lastWhite;
-    bool first = true, checkBoxAppear = true, firstInWhiteLine = true;
+    bool first = true, pressed = false;
     double lastPressTime = 0, lastTimeCheckBoxAppear = 0;
+    int whitePixelsChangeCount = 0;
+
+    Mat srcConfig = hwnd2mat(hwndDesktop);
+    const int squareSideLength = calculateSquare(srcConfig.size().width, srcConfig.size().height, widthSquare, heightSquare);
+    const int realRadius = calculateRadius(srcConfig.size().width, srcConfig.size().height, widthRad, heightRad);
+
+    const Rect crop_region((srcConfig.size().width / 2) - (squareSideLength / 2), srcConfig.size().height / 2 - (squareSideLength / 2), squareSideLength, squareSideLength);
+    auto cropedConfig = srcConfig(crop_region);
+    const Point CircleCenter = Point(cropedConfig.size().width / 2, cropedConfig.size().height / 2);
 
 #if !defined(RELEASE_MODE)
     namedWindow("output", WINDOW_AUTOSIZE);
@@ -221,24 +204,19 @@ int main(int argc, char **argv)
     while (true)
 #endif
     {
+        // auto t1 = clock();
         // start=clock();
         Mat src = hwnd2mat(hwndDesktop);
         // Mat croped = src(Range(src.size().width / 2 - squareSide/2, src.size().width / 2 + squareSide/2),Range(src.size().height/2,src.size().height/2 + squareSide)); // Slicing to crop the image
 
-        int squareSideLength = calculateSquare(src.size().width, src.size().height, widthSquare, heightSquare);
-
-        Rect crop_region((src.size().width / 2) - (squareSideLength / 2), src.size().height / 2 - (squareSideLength / 2), squareSideLength, squareSideLength);
         // specifies the region of interest in Rectangle form
 
         auto croped = src(crop_region);
         // croped = constrast(alpha, beta, croped);
 
-        int realRadius = calculateRadius(src.size().width, src.size().height, widthRad, heightRad);
-
-        croped = ShowBlackCircle(croped, Point(croped.size().width / 2, croped.size().height / 2), realRadius, FILLED);
-        // std::cout <<  (double(src.size().width) / radiusIndex) << std::endl;
-
-        croped = ShowBlackCircle(croped, Point(croped.size().width / 2, croped.size().height / 2), realRadius + spacing + (100 / 2), 100);
+        croped = ShowBlackCircle(croped, CircleCenter, realRadius, FILLED);
+        ;
+        croped = ShowBlackCircle(croped, CircleCenter, realRadius + spacing + 50, 100);
 
         auto currentPixels = safeWhitePixels(croped);
         if (!currentPixels.empty())
@@ -252,44 +230,29 @@ int main(int argc, char **argv)
             {
                 if (!compareWhitePixels(lastWhite, currentPixels))
                 {
-                    if (checkBoxAppear)
+                    if (whitePixelsChangeCount > 0)
                     {
-                        std::cout << "Checkbox appear" << std::endl;
-                        checkBoxAppear = false;
-                        lastTimeCheckBoxAppear = clock();
+                        std::cout << "Press" << std::endl;
+                        press();
+                        lastPressTime = clock();
+
+                        whitePixelsChangeCount = 0;
+                        pressed = true;
                     }
                     else
                     {
-                        if (firstInWhiteLine)
-                        {
-                            std::cout << "PRESS" << std::endl;
-                            lastPressTime = clock();
-                            firstInWhiteLine = false;
-
-                            press();
-                        }
+                        whitePixelsChangeCount++;
                     }
-
-                    // after 1 s of no change in the pixels checkBox = true and firstInWhiteLine = true
                 }
 
                 lastWhite = currentPixels;
             }
         }
-        if (clock() - lastPressTime > 1000 && lastPressTime != 0)
+
+        if (clock() - lastPressTime > 1500 && pressed)
         {
-            firstInWhiteLine = true;
-            checkBoxAppear = true;
-            lastPressTime = 0;
-            std::cout << "RELEASE" << std::endl;
-        }
-        if (clock() - lastTimeCheckBoxAppear > 1000 && lastTimeCheckBoxAppear != 0)
-        {
-            checkBoxAppear = true;
-            firstInWhiteLine = true;
-            lastTimeCheckBoxAppear = 0;
-            lastPressTime = 0;
-            std::cout << "NOT IN GAME ACTION" << std::endl;
+            whitePixelsChangeCount = 0;
+            pressed = false;
         }
 
 #if !defined(RELEASE_MODE)
@@ -300,7 +263,7 @@ int main(int argc, char **argv)
             std::cout << "Window is not visible" << std::endl;
             break;
         }
-#endif //
+#endif
     }
 #if !defined(RELEASE_MODE)
     destroyAllWindows();
