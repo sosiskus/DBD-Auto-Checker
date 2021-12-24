@@ -8,7 +8,6 @@ include_directories(${OpenCV_INCLUDE-DIRECTORIES})
 add_executable(DBD_Auto_Check main.cpp)
 # target_compile_features(DBD_Auto_Check PRIVATE cxx_std_17)
 
-
 target_link_libraries( DBD_Auto_Check ${OpenCV_LIBS} )
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
