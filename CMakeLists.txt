@@ -12,3 +12,9 @@ target_link_libraries( DBD_Auto_Check ${OpenCV_LIBS} )
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
+
+add_custom_command(
+    TARGET DBD_Auto_Check
+    COMMAND go run ${CMAKE_CURRENT_SOURCE_DIR}/scripts/releaseCode.go
+    COMMENT "Running release code generator"
+)
