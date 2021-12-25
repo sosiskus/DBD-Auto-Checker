@@ -17,8 +17,6 @@
 
 #define WINVER 0x0500
 
-// #define RELEASE_MODE
-
 using namespace std;
 using namespace cv;
 
@@ -27,6 +25,33 @@ struct PointWithColor
     cv::Point point;
     cv::Vec3b color;
 };
+struct SizeScreenToCaptureArea
+{
+    unsigned int screnSize, radius;
+};
+
+const SizeScreenToCaptureArea widthRad = {1280, 43};
+const SizeScreenToCaptureArea heightRad = {720, 43};
+
+const SizeScreenToCaptureArea heightSquare = {720, 100};
+const SizeScreenToCaptureArea widthSquare = {1280, 100};
+
+const double spacing = 10;
+
+// Image count colored pixels in range [lowerBound, upperBound]
+int countPixels(Mat img, Scalar lowerBound, Scalar upperBound)
+{
+    int counter = 0;
+    cv::MatConstIterator_<cv::Vec3b> it; // = src_it.begin<cv::Vec3b>();
+    for (it = img.begin<cv::Vec3b>(); it != img.end<cv::Vec3b>(); ++it)
+    {
+        if ((*it)[0] >= lowerBound[0] && (*it)[0] <= upperBound[0] && (*it)[1] >= lowerBound[1] && (*it)[1] <= upperBound[1] && (*it)[2] >= lowerBound[2] && (*it)[2] <= upperBound[2])
+        {
+            counter++;
+        }
+    }
+    return counter;
+}
 
 Mat hwnd2mat(HWND hwnd)
 {
@@ -79,22 +104,6 @@ Mat hwnd2mat(HWND hwnd)
     return src;
 }
 
-struct SizeScreenToCaptureArea
-{
-    unsigned int screnSize, radius;
-};
-
-const SizeScreenToCaptureArea widthRad = {1280, 43};
-const SizeScreenToCaptureArea heightRad = {720, 43};
-
-// const double heightIndex = 7.5;
-// const double widthIndex = 11.7;
-const SizeScreenToCaptureArea heightSquare = {720, 100};
-const SizeScreenToCaptureArea widthSquare = {1280, 100};
-
-// const double radiusIndex = 30;
-const double spacing = 10;
-
 Mat ShowBlackCircle(const cv::Mat &img, cv::Point cp, int radius, int thik)
 {
     cv::circle(img, cp, radius, Scalar(0, 0, 0), thik);
@@ -119,15 +128,6 @@ std::vector<PointWithColor> saveWhitePixels(Mat img)
     return whitePixels;
 }
 
-bool compareWhitePixels(std::vector<PointWithColor> &first, std::vector<PointWithColor> &second)
-{
-    if (first.size() != second.size())
-    {
-        return false;
-    }
-    return true;
-}
-
 BOOL onConsoleEvent(DWORD event)
 {
 
@@ -135,7 +135,6 @@ BOOL onConsoleEvent(DWORD event)
     {
     case CTRL_C_EVENT:
     case CTRL_CLOSE_EVENT:
-        // do stuff
         std::cout << "CTRL_CLOSE_EVENT" << std::endl;
         break;
     }
@@ -165,8 +164,6 @@ int calculateSquare(int screenWidth, int screenHeight, SizeScreenToCaptureArea w
 void press()
 {
     INPUT ip;
-
-    // Pause for 5 seconds.
 
     // Set up a generic keyboard event.
     ip.type = INPUT_KEYBOARD;
@@ -245,7 +242,7 @@ int FindBlobs(cv::Mat &image, std::vector<cv::Rect> &out, float minArea)
 }
 double whitePercentage(cv::Mat img)
 {
-    double whiteCount = 0, allPixelsCount = img.rows * img.cols;
+    double whiteCount = 0;
     for (int y = 0; y < img.rows; y++)
     {
         for (int x = 0; x < img.cols; x++)
@@ -257,99 +254,54 @@ double whitePercentage(cv::Mat img)
             }
         }
     }
-    return whiteCount * 100 / allPixelsCount;
+    return whiteCount;
 }
-
-cv::Rect findMOstWhiteRect(std::vector<cv::Rect> rects, cv::Mat img)
+cv::Rect findMOstWhiteRect(std::vector<cv::Rect> rects, cv::Mat img, int minSide)
 {
     double maxWhitePercentage = 0;
     cv::Rect maxWhiteRect;
-    for (auto &rect : rects)
+    for (auto rect : rects)
     {
-        double percentage = whitePercentage(img(rect));
-        if (percentage > maxWhitePercentage)
+        if (rect.width < minSide || rect.height < minSide)
+            continue;
+
+        int currentPercentage = countPixels(img(rect), Scalar(255, 255, 255), Scalar(255, 255, 255)) * 100 / rect.area();
+        if (currentPercentage > maxWhitePercentage)
         {
-            maxWhitePercentage = percentage;
+            maxWhitePercentage = currentPercentage;
             maxWhiteRect = rect;
         }
     }
     return maxWhiteRect;
 }
 
-Mat takeScreenshot()
-{
-    Mat h;
-    RECT rc;
-    // HWND hwnd = GetShellWindow();
-    HWND hShellWnd = GetShellWindow();
-    HWND hDefView = FindWindowEx(hShellWnd, NULL, _T("SHELLDLL_DefView"), NULL);
-    HWND hwnd = FindWindowEx(hDefView, NULL, _T("SysListView32"), NULL);
-    if (hwnd == NULL)
-    {
-        cout << "it can't find any 'note' window" << endl;
-        return h;
-    }
-    GetClientRect(hwnd, &rc);
-
-    // create
-    HDC hdcScreen = GetDC(NULL);
-    HDC hdc = CreateCompatibleDC(hdcScreen);
-    HBITMAP hbmp = CreateCompatibleBitmap(hdcScreen,
-                                          rc.right - rc.left, rc.bottom - rc.top);
-    SelectObject(hdc, hbmp);
-
-    // Print to memory hdc
-    PrintWindow(hwnd, hdc, PW_CLIENTONLY);
-
-    // copy to clipboard
-    OpenClipboard(NULL);
-    EmptyClipboard();
-    SetClipboardData(CF_BITMAP, hbmp);
-    CloseClipboard();
-
-    // release
-    DeleteDC(hdc);
-    DeleteObject(hbmp);
-    ReleaseDC(NULL, hdcScreen);
-
-    cout << "success copy to clipboard, please paste it to the 'mspaint'" << endl;
-    return h;
-}
-
 int main(int argc, char **argv)
 {
+    Mat img;
+    HWND hwnd = GetDesktopWindow();
+    Mat config = hwnd2mat(hwnd);
+    const int squareSideLength = calculateSquare(config.size().width, config.size().height, widthSquare, heightSquare);
+    const int realRadius = calculateRadius(config.size().width, config.size().height, widthRad, heightRad);
 
-    HWND hwndDesktop = GetDesktopWindow();
-    Mat srcConfig = hwnd2mat(hwndDesktop);
-    const int squareSideLength = calculateSquare(srcConfig.size().width, srcConfig.size().height, widthSquare, heightSquare);
-    const int realRadius = calculateRadius(srcConfig.size().width, srcConfig.size().height, widthRad, heightRad);
+    std::cout << "Size of screen: " << config.size().width << "x" << config.size().height << std::endl;
 
-    const Rect crop_region((srcConfig.size().width / 2) - (squareSideLength / 2), srcConfig.size().height / 2 - (squareSideLength / 2), squareSideLength, squareSideLength);
-    auto cropedConfig = srcConfig(crop_region);
+    const Rect crop_region((config.size().width / 2) - (squareSideLength / 2), config.size().height / 2 - (squareSideLength / 2), squareSideLength, squareSideLength);
+
+    Mat cropedConfig = config(crop_region);
     const Point CircleCenter = Point(cropedConfig.size().width / 2, cropedConfig.size().height / 2);
 
-    Mat img;
     std::vector<PointWithColor> lastWhite;
     bool checkBoxAppear = false;
 
     bool created = false;
-    bool first2 = true;
     cv::Rect mostWhite;
     unsigned long long lastCheckBox = 0;
 
-    // namedWindow("config", WINDOW_NORMAL);
+    namedWindow("config", WINDOW_NORMAL);
     while (true)
     {
-        auto t1 = clock();
-        // hwndDesktop = GetDesktopWindow();
-        // img = hwnd2mat(hwndDesktop);
-
-        img = takeScreenshot();
-        imshow("config", img);
-
-        std::cout << "Time: " << (clock() - t1) << std::endl;
-        waitKey(10000000);
-        exit(0);
+        hwnd = GetDesktopWindow();
+        img = hwnd2mat(hwnd);
 
         img = img(crop_region);
 
@@ -358,19 +310,26 @@ int main(int argc, char **argv)
 
         if (!created)
         {
-            auto currentPixels = saveWhitePixels(img);
-            if (!currentPixels.empty())
+            // auto currentPixels = saveWhitePixels(img);
+            // auto t1 = clock();
+            if (countPixels(img, Scalar(220, 220, 220), Scalar(255, 255, 255)) > 1)
             {
                 std::cout << "CheckBox appear" << std::endl;
 
                 std::vector<cv::Rect> h;
                 FindBlobs(img, h, 3);
 
-                mostWhite = findMOstWhiteRect(h, img);
+                mostWhite = findMOstWhiteRect(h, img, 5);
+                // Print all rectangles
+                // for (auto &rect : h)
+                // {
+                //     rectangle(img, rect, Scalar(0, 255, 0), 1);
+                // }
 
                 created = true;
                 lastCheckBox = clock();
             }
+            // std::cout << "Time: " << (clock() - t1) << std::endl;
         }
         else
         {
@@ -382,92 +341,34 @@ int main(int argc, char **argv)
             else
             {
                 Mat submat = img(mostWhite);
-                cv::MatConstIterator_<cv::Vec3b> it; // = src_it.begin<cv::Vec3b>();
-                for (it = submat.begin<cv::Vec3b>(); it != submat.end<cv::Vec3b>(); ++it)
-                {
-
-                    if ((*it)[0] < 20 && (*it)[1] < 20 && (*it)[2] > 90)
-                    {
-                        std::cout << "RED" << std::endl;
-                        press();
-                        waitKey(1000);
-                        created = false;
-                        break;
-                    }
-                }
-                // std::cout << std::endl;
                 // imshow("config", submat);
                 // waitKey(1);
+                // cv::MatConstIterator_<cv::Vec3b> it; // = src_it.begin<cv::Vec3b>();
+                // for (it = submat.begin<cv::Vec3b>(); it != submat.end<cv::Vec3b>(); ++it)
+                // {
+                if (countPixels(submat, Scalar(0, 0, 150), Scalar(70, 70, 255)) > 1)
+                {
+                    std::cout << "RED" << std::endl;
+                    // press();
+                    // waitKey(1000);
+                    Sleep(1000);
+                    created = false;
+                }
+
+                // if ((*it)[0] < 20 && (*it)[1] < 20 && (*it)[2] > 90)
+                // {
+                //     std::cout << "RED" << std::endl;
+                //     press();
+                //     waitKey(1000);
+                //     created = false;
+                //     break;
+                // }
+                // }
             }
         }
+        // rectangle(img, mostWhite, Scalar(255, 0, 0), 1);
         // imshow("output", img);
         // waitKey(1);
     }
-
     return 0;
 }
-
-// Mat croped = src(Range(src.size().width / 2 - squareSide/2, src.size().width / 2 + squareSide/2),Range(src.size().height/2,src.size().height/2 + squareSide)); // Slicing to crop the image
-// std::vector<cv::Rect> h;
-// FindBlobs(img, h, 3);
-
-// // for(int i = 0; i < h.size(); i++)
-// // {
-// //     rectangle(img, h[i], Scalar(255,0,0), 2, 8, 0);
-// // }
-
-// cv::Rect mostWhite = findMOstWhiteRect(h, img);
-// // rectangle(img, mostWhite, Scalar(0,255,0), 2, 8, 0);
-// auto newImg = img(mostWhite);
-// // specifies the region of interest in Rectangle form
-// map<Vec3b, int, lessVec3b> palette = getPalette(newImg);
-// int areanewImg = img.rows * img.cols;
-
-// for (auto color : palette)
-// {
-//     cout << "Color: " << color.first << " \t - Area: " << 100.f * float(color.second) / float(areanewImg) << "%" << endl;
-// }
-
-// auto croped = src(crop_region);
-// // croped = constrast(alpha, beta, croped);
-
-// auto currentPixels = safeWhitePixels(croped);
-// if (!currentPixels.empty())
-// {
-//     if (first)
-//     {
-//         lastWhite = currentPixels;
-//         first = false;
-//     }
-//     else
-//     {
-//         if (!compareWhitePixels(lastWhite, currentPixels))
-//         {
-//             if (whitePixelsChangeCount > 0)
-//             {
-//                 std::cout << "Press" << std::endl;
-//                 press();
-//                 lastPressTime = clock();
-
-//                 whitePixelsChangeCount = 0;
-//                 pressed = true;
-//             }
-//             else
-//             {
-//                 whitePixelsChangeCount++;
-//             }
-//         }
-
-//         lastWhite = currentPixels;
-//     }
-// }
-
-// if (clock() - lastPressTime > 1500 && pressed)
-// {
-//     whitePixelsChangeCount = 0;
-//     pressed = false;
-// }
-
-// imshow("Full image", img);
-// imshow("Croped image", newImg);
-// int k = waitKey(0); // Wait for a keystroke in the window
