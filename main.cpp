@@ -320,6 +320,8 @@ int main(int argc, char **argv)
                 FindBlobs(img, h, 3);
 
                 mostWhite = findMOstWhiteRect(h, img, 5);
+                if (mostWhite.area() == 0)
+                    continue;
                 std::cout << "Most white rect: " << mostWhite << std::endl;
                 std::cout << "Img size:  " << img.size() << std::endl;
                 rectangle(img, mostWhite, Scalar(0, 0, 255), 2);
