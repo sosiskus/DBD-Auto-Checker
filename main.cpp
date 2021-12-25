@@ -294,10 +294,10 @@ int main(int argc, char **argv)
     bool checkBoxAppear = false;
 
     bool created = false;
-    cv::Rect mostWhite;
+    cv::Rect mostWhite, scaledRect;
     unsigned long long lastCheckBox = 0;
 
-    // namedWindow("config", WINDOW_NORMAL);
+    namedWindow("config", WINDOW_NORMAL);
     while (true)
     {
         hwnd = GetDesktopWindow();
@@ -320,6 +320,39 @@ int main(int argc, char **argv)
                 FindBlobs(img, h, 3);
 
                 mostWhite = findMOstWhiteRect(h, img, 5);
+                std::cout << "Most white rect: " << mostWhite << std::endl;
+                std::cout << "Img size:  " << img.size() << std::endl;
+                rectangle(img, mostWhite, Scalar(0, 0, 255), 2);
+
+                const int amount = 15;
+
+                // mostWhite.x - amount < 0 ? mostWhite.x = 0 : mostWhite.x -= amount;
+                // mostWhite.y - amount < 0 ? mostWhite.y = 0 : mostWhite.y -= amount;
+
+                if (mostWhite.x + mostWhite.width + amount > img.size().width)
+                {
+                    mostWhite.width = img.size().width - mostWhite.x;
+                }
+                else
+                {
+                    mostWhite.width += amount;
+                }
+
+                if (mostWhite.y + mostWhite.height + amount > img.size().height)
+                {
+                    mostWhite.height = img.size().height - mostWhite.y;
+                }
+                else
+                {
+                    mostWhite.height += amount;
+                }
+
+                // mostWhite.width + amount > img.size().width ? mostWhite.width = img.cols-1 : mostWhite.width += amount;
+                // mostWhite.height + amount > img.rows ? mostWhite.height = img.rows : mostWhite.height += amount;
+
+                // Rect b(mostWhite.x - 10, mostWhite.y - 10, mostWhite.width+10, mostWhite.height+10);
+                // scaledRect = b;
+                // mostWhite += Size(10,10);
                 // Print all rectangles
                 // for (auto &rect : h)
                 // {
@@ -341,7 +374,7 @@ int main(int argc, char **argv)
             else
             {
                 Mat submat = img(mostWhite);
-                // imshow("config", submat);
+                imshow("config", submat);
                 // waitKey(1);
                 // cv::MatConstIterator_<cv::Vec3b> it; // = src_it.begin<cv::Vec3b>();
                 // for (it = submat.begin<cv::Vec3b>(); it != submat.end<cv::Vec3b>(); ++it)
@@ -349,7 +382,7 @@ int main(int argc, char **argv)
                 if (countPixels(submat, Scalar(0, 0, 150), Scalar(70, 70, 255)) > 1)
                 {
                     std::cout << "RED" << std::endl;
-                    // press();
+                    press();
                     // waitKey(1000);
                     Sleep(1000);
                     created = false;
