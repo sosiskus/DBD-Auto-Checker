@@ -297,7 +297,7 @@ int main(int argc, char **argv)
     cv::Rect mostWhite;
     unsigned long long lastCheckBox = 0;
 
-    namedWindow("config", WINDOW_NORMAL);
+    // namedWindow("config", WINDOW_NORMAL);
     while (true)
     {
         hwnd = GetDesktopWindow();
@@ -367,8 +367,8 @@ int main(int argc, char **argv)
             }
         }
         // rectangle(img, mostWhite, Scalar(255, 0, 0), 1);
-        // imshow("output", img);
-        // waitKey(1);
+        imshow("output", img);
+        waitKey(1);
     }
     return 0;
 }
