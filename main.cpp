@@ -1,5 +1,6 @@
 #include "opencv2/imgproc.hpp"
-#include "opencv2/highgui.hpp"
+#include <opencv2/highgui.hpp>
+
 #include <opencv2/imgproc/types_c.h>
 #include <Windows.h>
 #include <iostream>
@@ -274,9 +275,55 @@ cv::Rect findMOstWhiteRect(std::vector<cv::Rect> rects, cv::Mat img, int minSide
     }
     return maxWhiteRect;
 }
-
-int main(int argc, char **argv)
+void rounded_rectangle(Mat &src, Point topLeft, Point bottomRight, const Scalar lineColor, const int thickness, const int lineType, const int cornerRadius)
 {
+    /* corners:
+     * p1 - p2
+     * |     |
+     * p4 - p3
+     */
+    Point p1 = topLeft;
+    Point p2 = Point(bottomRight.x, topLeft.y);
+    Point p3 = bottomRight;
+    Point p4 = Point(topLeft.x, bottomRight.y);
+
+    // draw straight lines
+    line(src, Point(p1.x + cornerRadius, p1.y), Point(p2.x - cornerRadius, p2.y), lineColor, thickness, lineType);
+    line(src, Point(p2.x, p2.y + cornerRadius), Point(p3.x, p3.y - cornerRadius), lineColor, thickness, lineType);
+    line(src, Point(p4.x + cornerRadius, p4.y), Point(p3.x - cornerRadius, p3.y), lineColor, thickness, lineType);
+    line(src, Point(p1.x, p1.y + cornerRadius), Point(p4.x, p4.y - cornerRadius), lineColor, thickness, lineType);
+
+    // draw arcs
+    ellipse(src, p1 + Point(cornerRadius, cornerRadius), Size(cornerRadius, cornerRadius), 180.0, 0, 90, lineColor, thickness, lineType);
+    ellipse(src, p2 + Point(-cornerRadius, cornerRadius), Size(cornerRadius, cornerRadius), 270.0, 0, 90, lineColor, thickness, lineType);
+    ellipse(src, p3 + Point(-cornerRadius, -cornerRadius), Size(cornerRadius, cornerRadius), 0.0, 0, 90, lineColor, thickness, lineType);
+    ellipse(src, p4 + Point(cornerRadius, -cornerRadius), Size(cornerRadius, cornerRadius), 90.0, 0, 90, lineColor, thickness, lineType);
+}
+
+bool buttonClicked = false;
+void CallBackFunc(int event, int x, int y, int flags, void *userdata)
+{
+    if (event == EVENT_LBUTTONDOWN)
+    {
+        cout << "Left button of the mouse is clicked - position (" << x << ", " << y << ")" << endl;
+        if (x >= 10 && x <= 190 && y >= 100 && y <= 130)
+        {
+            cout << "You have clicked on the Button" << endl;
+            buttonClicked = true;
+        }
+    }
+}
+
+int main()
+{
+    // FreeConsole();
+    // ShowWindow(GetConsoleWindow(), SW_HIDE);
+
+    HWND Stealth;
+    AllocConsole();
+    Stealth = FindWindowA("ConsoleWindowClass", NULL);
+    ShowWindow(Stealth, 0);
+
     Mat img;
     HWND hwnd = GetDesktopWindow();
     Mat config = hwnd2mat(hwnd);
@@ -297,7 +344,37 @@ int main(int argc, char **argv)
     cv::Rect mostWhite, scaledRect;
     unsigned long long lastCheckBox = 0;
 
-    namedWindow("config", WINDOW_NORMAL);
+    namedWindow("Main", WINDOW_AUTOSIZE);
+    Mat menu(Size(200, 150), CV_8UC3, Scalar(10, 10, 1));
+    circle(menu, Point(50, 50), 30, Scalar(220, 220, 220), -1);
+    circle(menu, Point(50, 50), 25, Scalar(60, 150, 0), -1);
+    // circle(menu, Point(50,50), 25, Scalar(60, 0, 150), -1);
+    // circle(menu, Point(50,50), 25, Scalar(30, 190, 190), -1);
+    rounded_rectangle(menu, Point(10, 100), Point(190, 130), Scalar(255, 255, 255), 1, 8, 10);
+
+    cv::putText(menu,               // target image
+                "State",            // text
+                cv::Point(100, 65), // top-left position
+                cv::FONT_HERSHEY_DUPLEX,
+                1,
+                CV_RGB(220, 220, 220), // font color
+                2);
+
+    cv::Point seed(20, 120);
+
+    cv::floodFill(menu, seed, cv::Scalar(255, 255, 255), 0, Scalar(5, 5, 5, 5), Scalar(5, 5, 5, 5));
+
+    cv::putText(menu,               // target image
+                "Show Area",        // text
+                cv::Point(30, 122), // top-left position
+                cv::FONT_HERSHEY_DUPLEX,
+                0.8,
+                CV_RGB(100, 100, 100), // font color
+                2);
+    imshow("Main", menu);
+    setMouseCallback("Main", CallBackFunc, NULL);
+    waitKey(1);
+
     while (true)
     {
         hwnd = GetDesktopWindow();
@@ -314,7 +391,6 @@ int main(int argc, char **argv)
             // auto t1 = clock();
             if (countPixels(img, Scalar(220, 220, 220), Scalar(255, 255, 255)) > 1)
             {
-                std::cout << "CheckBox appear" << std::endl;
 
                 std::vector<cv::Rect> h;
                 FindBlobs(img, h, 3);
@@ -322,14 +398,10 @@ int main(int argc, char **argv)
                 mostWhite = findMOstWhiteRect(h, img, 5);
                 if (mostWhite.area() == 0)
                     continue;
-                std::cout << "Most white rect: " << mostWhite << std::endl;
-                std::cout << "Img size:  " << img.size() << std::endl;
-                rectangle(img, mostWhite, Scalar(0, 0, 255), 2);
+                std::cout << "CheckBox appear" << std::endl;
+                circle(menu, Point(50, 50), 25, Scalar(30, 190, 190), -1); // Change menu circle color to yellow
 
                 const int amount = 15;
-
-                // mostWhite.x - amount < 0 ? mostWhite.x = 0 : mostWhite.x -= amount;
-                // mostWhite.y - amount < 0 ? mostWhite.y = 0 : mostWhite.y -= amount;
 
                 if (mostWhite.x + mostWhite.width + amount > img.size().width)
                 {
@@ -371,12 +443,13 @@ int main(int argc, char **argv)
             if (clock() - lastCheckBox >= 3000)
             {
                 std::cout << "TIMER" << std::endl;
+                circle(menu, Point(50, 50), 25, Scalar(60, 150, 0), -1); // Change menu circle color to green
                 created = false;
             }
             else
             {
                 Mat submat = img(mostWhite);
-                imshow("config", submat);
+                // imshow("config", submat);
                 // waitKey(1);
                 // cv::MatConstIterator_<cv::Vec3b> it; // = src_it.begin<cv::Vec3b>();
                 // for (it = submat.begin<cv::Vec3b>(); it != submat.end<cv::Vec3b>(); ++it)
@@ -385,8 +458,11 @@ int main(int argc, char **argv)
                 {
                     std::cout << "RED" << std::endl;
                     press();
-                    // waitKey(1000);
+                    circle(menu, Point(50, 50), 25, Scalar(60, 0, 150), -1); // Change menu circle color to red
+                    imshow("Main", menu);
+                    waitKey(1);
                     Sleep(1000);
+                    circle(menu, Point(50, 50), 25, Scalar(60, 150, 0), -1); // Change menu circle color to green
                     created = false;
                 }
 
@@ -402,8 +478,30 @@ int main(int argc, char **argv)
             }
         }
         // rectangle(img, mostWhite, Scalar(255, 0, 0), 1);
-        imshow("output", img);
-        waitKey(1);
+        imshow("Main", menu);
+        
+        if (buttonClicked)
+        {
+            imshow("Capture", img);
+            waitKey(1);
+            if (getWindowProperty("Capture", WND_PROP_VISIBLE) < 1)
+            {
+                std::cout << "Window \"Capture\" is not visible" << std::endl;
+                destroyWindow("Capture");
+                buttonClicked = false;
+            }
+        }
+        else
+        {
+            waitKey(1);
+        }
+
+        if (getWindowProperty("Main", WND_PROP_VISIBLE) < 1)
+        {
+            std::cout << "Window \"Main\" is visible" << std::endl;
+            break;
+        }
     }
+    destroyAllWindows();
     return 0;
 }
