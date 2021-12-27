@@ -54,11 +54,11 @@ int countPixels(Mat img, Scalar lowerBound, Scalar upperBound)
     return counter;
 }
 
-Mat hwnd2mat(HWND hwnd)
+Mat hwnd2mat(HWND hwnd, const Rect &crop_region)
 {
     HDC hwindowDC, hwindowCompatibleDC;
 
-    int height, width, srcheight, srcwidth;
+    // int height, width, srcheight, srcwidth;
     HBITMAP hbwindow;
     Mat src;
     BITMAPINFOHEADER bi;
@@ -67,13 +67,15 @@ Mat hwnd2mat(HWND hwnd)
     hwindowCompatibleDC = CreateCompatibleDC(hwindowDC);
     SetStretchBltMode(hwindowCompatibleDC, COLORONCOLOR);
 
-    RECT windowsize; // get the height and width of the screen
-    GetClientRect(hwnd, &windowsize);
+    // RECT windowsize; // get the height and width of the screen
+    // GetClientRect(hwnd, &windowsize);
 
-    srcheight = windowsize.bottom;
-    srcwidth = windowsize.right;
-    height = windowsize.bottom / 1; // change this to whatever size you want to resize to
-    width = windowsize.right / 1;
+    // srcheight = windowsize.bottom;
+    // srcwidth = windowsize.right;
+    // height = windowsize.bottom / 1; // change this to whatever size you want to resize to
+    // width = windowsize.right
+    const int width = crop_region.width;
+    const int height = crop_region.height;
 
     src.create(height, width, CV_8UC4);
 
@@ -94,8 +96,9 @@ Mat hwnd2mat(HWND hwnd)
     // use the previously created device context with the bitmap
     SelectObject(hwindowCompatibleDC, hbwindow);
     // copy from the window device context to the bitmap device context
-    StretchBlt(hwindowCompatibleDC, 0, 0, width, height, hwindowDC, 0, 0, srcwidth, srcheight, SRCCOPY); // change SRCCOPY to NOTSRCCOPY for wacky colors !
-    GetDIBits(hwindowCompatibleDC, hbwindow, 0, height, src.data, (BITMAPINFO *)&bi, DIB_RGB_COLORS);    // copy from hwindowCompatibleDC to hbwindow
+    BitBlt(hwindowCompatibleDC, 0, 0, width, height, hwindowDC, crop_region.x, crop_region.y, SRCCOPY);
+
+    GetDIBits(hwindowCompatibleDC, hbwindow, 0, height, src.data, (BITMAPINFO *)&bi, DIB_RGB_COLORS); // copy from hwindowCompatibleDC to hbwindow
 
     // avoid memory leak
     DeleteObject(hbwindow);
@@ -316,17 +319,12 @@ void CallBackFunc(int event, int x, int y, int flags, void *userdata)
 
 int main()
 {
-    // FreeConsole();
-    // ShowWindow(GetConsoleWindow(), SW_HIDE);
-
-    HWND Stealth;
-    AllocConsole();
-    Stealth = FindWindowA("ConsoleWindowClass", NULL);
-    ShowWindow(Stealth, 0);
 
     Mat img;
     HWND hwnd = GetDesktopWindow();
-    Mat config = hwnd2mat(hwnd);
+    int x = GetSystemMetrics(SM_CXSCREEN);
+    int y = GetSystemMetrics(SM_CYSCREEN);
+    Mat config = hwnd2mat(hwnd, Rect(0, 0, x, y));
     const int squareSideLength = calculateSquare(config.size().width, config.size().height, widthSquare, heightSquare);
     const int realRadius = calculateRadius(config.size().width, config.size().height, widthRad, heightRad);
 
@@ -377,10 +375,11 @@ int main()
 
     while (true)
     {
+        auto start = std::chrono::high_resolution_clock::now();
         hwnd = GetDesktopWindow();
-        img = hwnd2mat(hwnd);
+        img = hwnd2mat(hwnd, crop_region);
 
-        img = img(crop_region);
+        // img = img(crop_region);
 
         img = ShowBlackCircle(img, CircleCenter, realRadius, FILLED);
         img = ShowBlackCircle(img, CircleCenter, realRadius + spacing + 50, 100);
@@ -479,7 +478,7 @@ int main()
         }
         // rectangle(img, mostWhite, Scalar(255, 0, 0), 1);
         imshow("Main", menu);
-        
+
         if (buttonClicked)
         {
             imshow("Capture", img);
@@ -501,6 +500,8 @@ int main()
             std::cout << "Window \"Main\" is visible" << std::endl;
             break;
         }
+        std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count() << "ms" << std::endl;
+        
     }
     destroyAllWindows();
     return 0;
