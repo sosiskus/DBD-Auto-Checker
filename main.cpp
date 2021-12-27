@@ -401,7 +401,7 @@ int main()
                 std::cout << "CheckBox appear" << std::endl;
                 circle(menu, Point(50, 50), 25, Scalar(30, 190, 190), -1); // Change menu circle color to yellow
 
-                const int amount = 15;
+                const int amount = 10;
 
                 if (mostWhite.x + mostWhite.width + amount > img.size().width)
                 {
