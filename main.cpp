@@ -15,6 +15,8 @@
 #include <windows.h>
 #include <gdiplus.h>
 #include <time.h>
+#include <thread>
+#include <atomic>
 
 #define WINVER 0x0500
 
@@ -303,7 +305,7 @@ void rounded_rectangle(Mat &src, Point topLeft, Point bottomRight, const Scalar 
     ellipse(src, p4 + Point(cornerRadius, -cornerRadius), Size(cornerRadius, cornerRadius), 90.0, 0, 90, lineColor, thickness, lineType);
 }
 
-bool buttonClicked = false;
+std::atomic<bool> buttonClicked;
 void CallBackFunc(int event, int x, int y, int flags, void *userdata)
 {
     if (event == EVENT_LBUTTONDOWN)
@@ -316,11 +318,155 @@ void CallBackFunc(int event, int x, int y, int flags, void *userdata)
         }
     }
 }
+std::mutex myMutex;
+std::atomic<bool> isRunning;
+void captureScreenshot(Rect crop_region, Mat &img)
+{
+    HWND hwnd;
+    Mat screenshot;
+    while (isRunning)
+    {
+        hwnd = GetDesktopWindow();
+        screenshot = hwnd2mat(hwnd, crop_region);
+
+        myMutex.lock();
+        img = screenshot;
+        myMutex.unlock();
+    }
+}
+
+void processScreenshot(Mat &img, Mat &menu, const Point &CircleCenter, const int &realRadius)
+{
+    bool created = false;
+    unsigned long long lastCheckBox = 0;
+    Rect mostWhite;
+    while (isRunning)
+    {
+
+        Mat screenshot = img;
+
+        screenshot = ShowBlackCircle(screenshot, CircleCenter, realRadius, FILLED);
+        screenshot = ShowBlackCircle(screenshot, CircleCenter, realRadius + spacing + 50, 100);
+
+        if (!created)
+        {
+            if (countPixels(screenshot, Scalar(220, 220, 220), Scalar(255, 255, 255)) > 1)
+            {
+
+                std::vector<cv::Rect> h;
+                FindBlobs(screenshot, h, 3);
+
+                mostWhite = findMOstWhiteRect(h, screenshot, 5);
+
+                myMutex.lock();
+                rectangle(img, mostWhite, Scalar(255, 0, 0), 1); // DEBUG
+                myMutex.unlock();
+
+                if (mostWhite.area() == 0)
+                    continue;
+                std::cout << "CheckBox appear" << std::endl;
+
+                myMutex.lock();
+                circle(menu, Point(50, 50), 25, Scalar(30, 190, 190), -1); // Change menu circle color to yellow
+                myMutex.unlock();
+
+                const int amount = 3;
+
+                if (mostWhite.x + mostWhite.width + amount > screenshot.size().width)
+                {
+                    mostWhite.width = screenshot.size().width - mostWhite.x;
+                }
+                else
+                {
+                    mostWhite.width += amount;
+                }
+
+                if (mostWhite.y + mostWhite.height + amount > screenshot.size().height)
+                {
+                    mostWhite.height = screenshot.size().height - mostWhite.y;
+                }
+                else
+                {
+                    mostWhite.height += amount;
+                }
+
+                created = true;
+                lastCheckBox = clock();
+            }
+        }
+        else
+        {
+            if (clock() - lastCheckBox >= 3000)
+            {
+                std::cout << "TIMER" << std::endl;
+
+                myMutex.lock();
+                circle(menu, Point(50, 50), 25, Scalar(60, 150, 0), -1); // Change menu circle color to green
+                myMutex.unlock();
+
+                created = false;
+            }
+            else
+            {
+                Mat submat = screenshot(mostWhite);
+                if (countPixels(submat, Scalar(0, 0, 150), Scalar(70, 70, 255)) > 1)
+                {
+                    std::cout << "RED" << std::endl;
+                    press();
+
+                    myMutex.lock();
+                    circle(menu, Point(50, 50), 25, Scalar(60, 0, 150), -1); // Change menu circle color to red
+                    myMutex.unlock();
+
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+                    myMutex.lock();
+                    circle(menu, Point(50, 50), 25, Scalar(60, 150, 0), -1); // Change menu circle color to green
+                    myMutex.unlock();
+
+                    created = false;
+                }
+            }
+        }
+    }
+}
+
+void showImages(Mat &menu, Mat &img)
+{
+    namedWindow("Main", WINDOW_AUTOSIZE);
+    setMouseCallback("Main", CallBackFunc, NULL);
+    buttonClicked = false;
+    while (isRunning)
+    {
+        imshow("Main", menu);
+
+        if (buttonClicked)
+        {
+            imshow("Capture", img);
+            waitKey(1);
+            if (getWindowProperty("Capture", WND_PROP_VISIBLE) < 1)
+            {
+                std::cout << "Window \"Capture\" is not visible" << std::endl;
+                destroyWindow("Capture");
+                buttonClicked = false;
+            }
+        }
+        else
+        {
+            waitKey(1);
+        }
+        if (getWindowProperty("Main", WND_PROP_VISIBLE) < 1)
+        {
+            std::cout << "Window \"Main\" is not visible" << std::endl;
+            isRunning = false;
+        }
+    }
+}
 
 int main()
 {
-
     Mat img;
+    isRunning = true;
     HWND hwnd = GetDesktopWindow();
     int x = GetSystemMetrics(SM_CXSCREEN);
     int y = GetSystemMetrics(SM_CYSCREEN);
@@ -338,16 +484,9 @@ int main()
     std::vector<PointWithColor> lastWhite;
     bool checkBoxAppear = false;
 
-    bool created = false;
-    cv::Rect mostWhite, scaledRect;
-    unsigned long long lastCheckBox = 0;
-
-    namedWindow("Main", WINDOW_AUTOSIZE);
     Mat menu(Size(200, 150), CV_8UC3, Scalar(10, 10, 1));
     circle(menu, Point(50, 50), 30, Scalar(220, 220, 220), -1);
     circle(menu, Point(50, 50), 25, Scalar(60, 150, 0), -1);
-    // circle(menu, Point(50,50), 25, Scalar(60, 0, 150), -1);
-    // circle(menu, Point(50,50), 25, Scalar(30, 190, 190), -1);
     rounded_rectangle(menu, Point(10, 100), Point(190, 130), Scalar(255, 255, 255), 1, 8, 10);
 
     cv::putText(menu,               // target image
@@ -369,140 +508,14 @@ int main()
                 0.8,
                 CV_RGB(100, 100, 100), // font color
                 2);
-    imshow("Main", menu);
-    setMouseCallback("Main", CallBackFunc, NULL);
-    waitKey(1);
 
-    while (true)
-    {
-        auto start = std::chrono::high_resolution_clock::now();
-        hwnd = GetDesktopWindow();
-        img = hwnd2mat(hwnd, crop_region);
+    std::thread process(processScreenshot, std::ref(img), std::ref(menu), std::ref(CircleCenter), std::ref(realRadius));
+    std::thread show(showImages, std::ref(menu), std::ref(img));
+    std::thread takeScreenshot(captureScreenshot, crop_region, std::ref(img));
 
-        // img = img(crop_region);
-
-        img = ShowBlackCircle(img, CircleCenter, realRadius, FILLED);
-        img = ShowBlackCircle(img, CircleCenter, realRadius + spacing + 50, 100);
-
-        if (!created)
-        {
-            // auto currentPixels = saveWhitePixels(img);
-            // auto t1 = clock();
-            if (countPixels(img, Scalar(220, 220, 220), Scalar(255, 255, 255)) > 1)
-            {
-
-                std::vector<cv::Rect> h;
-                FindBlobs(img, h, 3);
-
-                mostWhite = findMOstWhiteRect(h, img, 5);
-                if (mostWhite.area() == 0)
-                    continue;
-                std::cout << "CheckBox appear" << std::endl;
-                circle(menu, Point(50, 50), 25, Scalar(30, 190, 190), -1); // Change menu circle color to yellow
-
-                const int amount = 10;
-
-                if (mostWhite.x + mostWhite.width + amount > img.size().width)
-                {
-                    mostWhite.width = img.size().width - mostWhite.x;
-                }
-                else
-                {
-                    mostWhite.width += amount;
-                }
-
-                if (mostWhite.y + mostWhite.height + amount > img.size().height)
-                {
-                    mostWhite.height = img.size().height - mostWhite.y;
-                }
-                else
-                {
-                    mostWhite.height += amount;
-                }
-
-                // mostWhite.width + amount > img.size().width ? mostWhite.width = img.cols-1 : mostWhite.width += amount;
-                // mostWhite.height + amount > img.rows ? mostWhite.height = img.rows : mostWhite.height += amount;
-
-                // Rect b(mostWhite.x - 10, mostWhite.y - 10, mostWhite.width+10, mostWhite.height+10);
-                // scaledRect = b;
-                // mostWhite += Size(10,10);
-                // Print all rectangles
-                // for (auto &rect : h)
-                // {
-                //     rectangle(img, rect, Scalar(0, 255, 0), 1);
-                // }
-
-                created = true;
-                lastCheckBox = clock();
-            }
-            // std::cout << "Time: " << (clock() - t1) << std::endl;
-        }
-        else
-        {
-            if (clock() - lastCheckBox >= 3000)
-            {
-                std::cout << "TIMER" << std::endl;
-                circle(menu, Point(50, 50), 25, Scalar(60, 150, 0), -1); // Change menu circle color to green
-                created = false;
-            }
-            else
-            {
-                Mat submat = img(mostWhite);
-                // imshow("config", submat);
-                // waitKey(1);
-                // cv::MatConstIterator_<cv::Vec3b> it; // = src_it.begin<cv::Vec3b>();
-                // for (it = submat.begin<cv::Vec3b>(); it != submat.end<cv::Vec3b>(); ++it)
-                // {
-                if (countPixels(submat, Scalar(0, 0, 150), Scalar(70, 70, 255)) > 1)
-                {
-                    std::cout << "RED" << std::endl;
-                    press();
-                    circle(menu, Point(50, 50), 25, Scalar(60, 0, 150), -1); // Change menu circle color to red
-                    imshow("Main", menu);
-                    waitKey(1);
-                    Sleep(1000);
-                    circle(menu, Point(50, 50), 25, Scalar(60, 150, 0), -1); // Change menu circle color to green
-                    created = false;
-                }
-
-                // if ((*it)[0] < 20 && (*it)[1] < 20 && (*it)[2] > 90)
-                // {
-                //     std::cout << "RED" << std::endl;
-                //     press();
-                //     waitKey(1000);
-                //     created = false;
-                //     break;
-                // }
-                // }
-            }
-        }
-        // rectangle(img, mostWhite, Scalar(255, 0, 0), 1);
-        imshow("Main", menu);
-
-        if (buttonClicked)
-        {
-            imshow("Capture", img);
-            waitKey(1);
-            if (getWindowProperty("Capture", WND_PROP_VISIBLE) < 1)
-            {
-                std::cout << "Window \"Capture\" is not visible" << std::endl;
-                destroyWindow("Capture");
-                buttonClicked = false;
-            }
-        }
-        else
-        {
-            waitKey(1);
-        }
-
-        if (getWindowProperty("Main", WND_PROP_VISIBLE) < 1)
-        {
-            std::cout << "Window \"Main\" is visible" << std::endl;
-            break;
-        }
-        std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count() << "ms" << std::endl;
-        
-    }
     destroyAllWindows();
+    process.join();
+    show.join();
+    takeScreenshot.join();
     return 0;
 }
