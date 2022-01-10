@@ -18,8 +18,6 @@
 #include <thread>
 #include <atomic>
 
-#define WINVER 0x0500
-
 using namespace std;
 using namespace cv;
 
@@ -40,6 +38,9 @@ const SizeScreenToCaptureArea heightSquare = {720, 100};
 const SizeScreenToCaptureArea widthSquare = {1280, 100};
 
 const double spacing = 10;
+
+const int amount = 3; // Increasing amount programm presses earlier
+const double scale = 1.0;
 
 // Image count colored pixels in range [lowerBound, upperBound]
 int countPixels(Mat img, Scalar lowerBound, Scalar upperBound)
@@ -62,7 +63,7 @@ Mat hwnd2mat(HWND hwnd, const Rect &crop_region)
 
     // int height, width, srcheight, srcwidth;
     HBITMAP hbwindow;
-    Mat src;
+    // Mat src;
     BITMAPINFOHEADER bi;
 
     hwindowDC = GetDC(hwnd);
@@ -79,7 +80,8 @@ Mat hwnd2mat(HWND hwnd, const Rect &crop_region)
     const int width = crop_region.width;
     const int height = crop_region.height;
 
-    src.create(height, width, CV_8UC4);
+    // src.create(height, width, CV_8UC4); // BUG
+    Mat src(height, width, CV_8UC4);
 
     // create a bitmap
     hbwindow = CreateCompatibleBitmap(hwindowDC, width, height);
@@ -110,10 +112,10 @@ Mat hwnd2mat(HWND hwnd, const Rect &crop_region)
     return src;
 }
 
-Mat ShowBlackCircle(const cv::Mat &img, cv::Point cp, int radius, int thik)
+Mat ShowBlackCircle(const cv::Mat h, cv::Point cp, int radius, int thik)
 {
-    cv::circle(img, cp, radius, Scalar(0, 0, 0), thik);
-    return img;
+    cv::circle(h, cp, radius, Scalar(0, 0, 0), thik);
+    return h;
 }
 
 std::vector<PointWithColor> saveWhitePixels(Mat img)
@@ -228,7 +230,7 @@ int FindBlobs(cv::Mat &image, std::vector<cv::Rect> &out, float minArea)
 {
     cv::Mat ids = cv::Mat::zeros(image.rows, image.cols, CV_8UC1);
     cv::Mat thresholded;
-    cv::cvtColor(image, thresholded, CV_RGB2GRAY);
+    cv::cvtColor(image, thresholded, CV_RGB2GRAY); // bug
     const int thresholdLevel = 130;
     cv::threshold(thresholded, thresholded, thresholdLevel, 255, CV_THRESH_BINARY);
     int blobId = 1;
@@ -335,18 +337,76 @@ void captureScreenshot(Rect crop_region, Mat &img)
     }
 }
 
+void mouseDown()
+{
+    INPUT Inputs[2] = {0};
+
+    Inputs[0].type = INPUT_MOUSE;
+    Inputs[0].mi.dx = 10;
+    Inputs[0].mi.dy = 10;
+    Inputs[0].mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
+
+    Inputs[1].type = INPUT_MOUSE;
+    Inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+
+    SendInput(2, Inputs, sizeof(INPUT));
+}
+
+void mouseUp()
+{
+    INPUT Inputs[2] = {0};
+
+    Inputs[0].type = INPUT_MOUSE;
+    Inputs[0].mi.dx = 10;
+    Inputs[0].mi.dy = 10;
+    Inputs[0].mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
+
+    Inputs[1].type = INPUT_MOUSE;
+    Inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+
+    SendInput(2, Inputs, sizeof(INPUT));
+}
+
 void processScreenshot(Mat &img, Mat &menu, const Point &CircleCenter, const int &realRadius)
 {
     bool created = false;
     unsigned long long lastCheckBox = 0;
     Rect mostWhite;
+    bool pressed = false;
+    bool keyDown = false;
     while (isRunning)
     {
+        if (GetKeyState('Z') < 0)
+        {
+            // DOWN
+            keyDown = true;
+        }
+        if (GetKeyState('Z') >= 0 && keyDown)
+        {
+            // UP
+            keyDown = false;
+            if (!pressed)
+            {
+                mouseDown();
+                pressed = true;
+            }
+            else
+            {
+                mouseUp();
+                pressed = false;
+            }
+        }
 
-        Mat screenshot = img;
+        myMutex.lock();
+        Mat screenshot = img.clone();
+        myMutex.unlock();
 
-        screenshot = ShowBlackCircle(screenshot, CircleCenter, realRadius, FILLED);
-        screenshot = ShowBlackCircle(screenshot, CircleCenter, realRadius + spacing + 50, 100);
+        screenshot = ShowBlackCircle(screenshot, CircleCenter, realRadius, FILLED).clone();
+        screenshot = ShowBlackCircle(screenshot, CircleCenter, realRadius + spacing + 50, 100).clone();
+
+        myMutex.lock();
+        img = screenshot.clone();
+        myMutex.unlock();
 
         if (!created)
         {
@@ -369,8 +429,6 @@ void processScreenshot(Mat &img, Mat &menu, const Point &CircleCenter, const int
                 myMutex.lock();
                 circle(menu, Point(50, 50), 25, Scalar(30, 190, 190), -1); // Change menu circle color to yellow
                 myMutex.unlock();
-
-                const int amount = 3;
 
                 if (mostWhite.x + mostWhite.width + amount > screenshot.size().width)
                 {
@@ -462,6 +520,63 @@ void showImages(Mat &menu, Mat &img)
         }
     }
 }
+void pressD_A()
+{
+    INPUT ip;
+
+    // Set up a generic keyboard event.
+    ip.type = INPUT_KEYBOARD;
+    ip.ki.wScan = 0; // hardware scan code for key
+    ip.ki.time = 0;
+    ip.ki.dwExtraInfo = 0;
+
+    // Press the "SPACE" key
+    ip.ki.wVk = 0x41;  // virtual-key code for the "SPACE" key
+    ip.ki.dwFlags = 0; // 0 for key pressaa
+    SendInput(1, &ip, sizeof(INPUT));
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    // Press the "SPACE" key
+    ip.ki.wVk = 0x44;  // virtual-key code for the "SPACE" key
+    ip.ki.dwFlags = 0; // 0 for key press
+    SendInput(1, &ip, sizeof(INPUT));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    ip.ki.wVk = 0x41;                // virtual-key code for the "SPACE" key
+    ip.ki.dwFlags = KEYEVENTF_KEYUP; // KEYEVENTF_KEYUP for key release
+    SendInput(1, &ip, sizeof(INPUT));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    ip.ki.wVk = 0x44;                // virtual-key code for the "SPACE" key
+    ip.ki.dwFlags = KEYEVENTF_KEYUP; // KEYEVENTF_KEYUP for key release
+    SendInput(1, &ip, sizeof(INPUT));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+}
+
+void escapeKillerThread()
+{
+    bool spam = false;
+    bool keyDown = false;
+    while (isRunning)
+    {
+        if (GetKeyState('X') < 0)
+        {
+            // DOWN
+            keyDown = true;
+        }
+        if (GetKeyState('X') >= 0 && keyDown)
+        {
+            // UP
+            keyDown = false;
+            spam = !spam;
+        }
+        if (spam)
+        {
+            pressD_A();
+        }
+    }
+}
 
 int main()
 {
@@ -476,7 +591,7 @@ int main()
 
     std::cout << "Size of screen: " << config.size().width << "x" << config.size().height << std::endl;
 
-    const Rect crop_region((config.size().width / 2) - (squareSideLength / 2), config.size().height / 2 - (squareSideLength / 2), squareSideLength, squareSideLength);
+    const Rect crop_region((config.size().width / 2) * scale - (squareSideLength / 2) * scale, config.size().height / 2 * scale - (squareSideLength / 2) * scale, squareSideLength, squareSideLength);
 
     Mat cropedConfig = config(crop_region);
     const Point CircleCenter = Point(cropedConfig.size().width / 2, cropedConfig.size().height / 2);
@@ -512,10 +627,12 @@ int main()
     std::thread process(processScreenshot, std::ref(img), std::ref(menu), std::ref(CircleCenter), std::ref(realRadius));
     std::thread show(showImages, std::ref(menu), std::ref(img));
     std::thread takeScreenshot(captureScreenshot, crop_region, std::ref(img));
+    std::thread escapeKiller(escapeKillerThread);
 
-    destroyAllWindows();
     process.join();
     show.join();
     takeScreenshot.join();
+    escapeKiller.join();
+    destroyAllWindows();
     return 0;
 }
