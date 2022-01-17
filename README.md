@@ -6,12 +6,15 @@ DBD Auto Skill Checker is a popular Dead By Daylight game cheat, which can autom
 - Extract content of archive into a directory
 - Run a exe file
 - You will show this interface
-![Program Interface](https://previews.dropbox.com/p/thumb/ABamk2SEQiKFlBqmifvfnQeuUrV8IbfSO5Xqy8d6Ec0EQ0-_RIA-XrFs5aUwxrMpq9x0XUU_9pEaU2Kw3OUM1SAEyTUYUISOTIQ9Y75KPcwhxJg1KhyvjzGPf-wifPP_Qq8lPNApTzhTBWtNE7kYP6LxAOC3eEuVCr57ZnQ9cm7JglKzB7oUNDQNdL5w3aE4iM67EENUDq9eBGuTAnWCclXKkjUrNPiiwyb4NHlkOYbAU7KcoKAcjJJ4rsOZ3lOoxOQMdBAM8GU0FFdnQ84XXKeflA_r7lGYEKWJldmYQFp2KFnElK_ainml1ewMCM7ZvzeWjmIz_ioHsDXE5kOSq2689q0ytZrwv2VX-dG26whEKw/p.png)
+
+![Program Interface](https://i.ibb.co/ZdFv6vn/Screenshot-2022-01-17-195036.png)
 
 Big green circle indicates program state if it is **Green** it shows that program is working, if it is **Yellow** this indicates that programm captured white collor. And **Red** when programm perform a keyboard press.
 
 If in your PC program does not work, you can press **Show Area** button to enable capture area output
-![Program Interface](https://previews.dropbox.com/p/thumb/ABY2jvtdRicoBcHvjmxUnzyvlJnMH0kRpd18gjDXQ5x8Wvr_YhVVzP6pt_59Gt2crxfoH6vYjdoXPHtd_oX1KXuAcYMliRJe3Z1Z5F3I8Pbmgm5nVKnXoy8yIeZInCEvlBCR5thFhmwHtF6N1PPjYblmWV0yOkViCnrXCN6WHhjespN89ut3766EhB3cHylqLwuaEWS8mTIy2yTO2DnROJB08xtpfBxfKyqSQDV8Ri-_0U3svPXwA3LArcmMxKmxGKStyLz1jKkqQxO05bxhkQaTveZNckoICFJcGR1KfpmInz-yvalSRIwAbyjsdBkW-6Y5iwRr-HycRCgj5lMh7D_G0kPHAOvtxEkIoQRojaI4Yw/p.png)
+
+![Program Interface](https://i.ibb.co/kxgKDrr/v.png)
+
 Now you can see which part of screen captures program and adjust it settings.
 
 ## Source code compilation
@@ -19,7 +22,8 @@ If our program does not act corectly on you device you can try to build it yours
 
 When you have all needed software installed you can open up a Visual Studio Code editor and open my program folder. Also yoo may need to install cmake extension in vscode.
 After that choose mingw64 as compiler for program and now you can build it by pressing build button.
-![kit image](https://previews.dropbox.com/p/thumb/ABbdc5-1lhOhoq18-aDCrDkTax7ojYtgLBZoxqT7ETQSfiV95OEFNg0mlt2Wj7Vmxnd2TOP1V_P1lmpswE-_D9NG4w9ngXX1K2XXu807VQiCe6R3DS0ljqzNAruJpO_w6It63Ipeum_2qkkpeKwOLmA-lSKPt1tyjbPeYVHvCTcG9Hx90msLaRaGfjydiOeEjA7YskvxstS8mVbfxRWJ56-ZVQ4pZQ_tyP1N0B_dG_PFSlQBTL6rUiV8Q3p6HqPaHZoK3qp0dbG8TaXLfSQjk52kRl8y6iKfqky-dFr8IohpVwO_M9dXQVYLOCEtc6uc7OvPpXO5vG4MU1KbJtfvfgYTlrE9imiIi_WOPPFi7HYKFw/p.png)
+
+![kit image](https://i.ibb.co/8rWXwDz/image-2022-01-17-202705.png)
 
 if you recieve some errors, firstly tro to remove this lines in **CMakeLists.txt** file
 ```cmake
@@ -39,7 +43,7 @@ Firstly, you need to check if your screen scale and program scale is equal
 ```c++
 const double scale = 1.0; // Screan scale
 ```
-![scale](https://previews.dropbox.com/p/thumb/ABZ1k3vrXcotJKARRjF3hIHpn0jlQIiTVurekT_-MXHSZrE7rMqAT1p_RSYX2dVAFAUjvZyLd9eH5naWXQfs_X5Wa2LfdbRc8yGRDOaab-yERn0iGj5ukpYN5a3hAguMh8CiNe4atJ4Azmw30ogcjWcHZbhNniwVCJGWq0bfyAJ98O1ACXCaR_f-imqYXSx2yOS3OAj9m_mimwA2frCYlxxP3yPs5Kj7MEtnU5b2qlJHVEwbvRfu4VBqOX443Ji8GJGzG1qzo2-VmapnNvo-YLLPNMrCrw1LFil6-YaifYH4zLDkDVHOzLagpNHO72Thkxv0knTtew0hKs1urAQp469hGHk62Mtos6ohmDPpt8N3NA/p.png)
+![scale](https://i.ibb.co/9WZYMz6/image-2022-01-17-203348.png)
 
 If this does not help and you see that either a black circle is too big or window size is to small, you can try to adjust this settings.
 ```c++
